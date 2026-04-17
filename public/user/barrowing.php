@@ -47,7 +47,7 @@ if (!in_array($dateColumn, $allowedDateColumns, true)) {
     die("Error: Invalid date column selected.");
 }
 
-$sql = "SELECT r.*, b.uuid, b.title, b.author 
+$sql = "SELECT r.*, b.uuid, b.title, b.author, b.publisher, b.yearPublished, b.description 
         FROM reservations r 
         JOIN books b ON r.book_id = b.book_id 
         WHERE r.user_id = ? 
@@ -109,14 +109,11 @@ foreach ($reservations as $r) {
                 <div class="book-info">
                     <div class="book-title"><?php echo htmlspecialchars($r['title']); ?></div>
                     <div class="book-author"><?php echo htmlspecialchars($r['author']); ?></div>
-
+                    <div class="book-publisher">Publisher: <?php echo htmlspecialchars($r['publisher'] ?? 'N/A'); ?></div>
+                    <div class="book-year">Year: <?php echo htmlspecialchars($r['yearPublished'] ?? 'N/A'); ?></div>
+                    <div class="book-description"><?php echo htmlspecialchars(substr($r['description'] ?? '', 0, 140)); ?><?php echo (!empty($r['description']) && strlen($r['description']) > 140) ? '...' : ''; ?></div>
                     <small>
-                        Reserved:
-                        <?php
-                        echo $r['display_date']
-                            ? date('M d, Y', strtotime($r['display_date']))
-                            : 'N/A';
-                        ?>
+                        Reserved: <?php echo $r['display_date'] ? date('M d, Y', strtotime($r['display_date'])) : 'N/A'; ?>
                     </small>
                 </div>
 

@@ -2,11 +2,61 @@
 header("Cache-Control: no-cache, must-revalidate");
 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
 
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+include(__DIR__ . '/../../app/config/config.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['reserve_uuid'])) {
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: ../../login.php');
+        exit;
+    }
+
+    $reserveUuid = trim($_POST['reserve_uuid']);
+    $user_id = $_SESSION['user_id'];
+
+    $stmtCheckBook = $conn->prepare("SELECT book_id FROM books WHERE uuid = ?");
+    $stmtCheckBook->bind_param("s", $reserveUuid);
+    $stmtCheckBook->execute();
+    $resultCheckBook = $stmtCheckBook->get_result();
+
+    if ($resultCheckBook->num_rows === 0) {
+        $reservationError = 'Book not found.';
+    } else {
+        $book = $resultCheckBook->fetch_assoc();
+        $book_id = $book['book_id'];
+        $stmtCheckBook->close();
+
+        $stmtCheckReservation = $conn->prepare("SELECT reservation_id FROM reservations WHERE user_id = ? AND book_id = ? AND status IN ('reserved', 'pending')");
+        $stmtCheckReservation->bind_param("ii", $user_id, $book_id);
+        $stmtCheckReservation->execute();
+        $resultCheckReservation = $stmtCheckReservation->get_result();
+
+        if ($resultCheckReservation->num_rows > 0) {
+            $reservationError = 'You have already reserved this book.';
+        } else {
+            $reservationDate = date('Y-m-d H:i:s');
+            $status = 'reserved';
+            $stmtInsert = $conn->prepare("INSERT INTO reservations (user_id, book_id, reservation_date, status) VALUES (?, ?, ?, ?)");
+            $stmtInsert->bind_param("iiss", $user_id, $book_id, $reservationDate, $status);
+
+            if ($stmtInsert->execute()) {
+                $stmtInsert->close();
+                header('Location: barrowing.php');
+                exit;
+            } else {
+                $reservationError = 'Could not reserve the book. Please try again.';
+            }
+        }
+        $stmtCheckReservation->close();
+    }
+}
+
 include(__DIR__ . '/includes/header.php');
 include(__DIR__ . '/includes/sidebar.php');
 include(__DIR__ . '/includes/topbar.php');
-
-include(__DIR__ . '/../../app/config/config.php');
 
 $sqlCategories = "SELECT DISTINCT category_id FROM books WHERE category_id IS NOT NULL ORDER BY category_id ASC";
 $resultCategories = $conn->query($sqlCategories);
@@ -100,6 +150,12 @@ if ($searchQuery !== '') {
         <h1 class="h3 mb-0 text-gray-800">Discovery Page</h1>
     </div>
 
+    <?php if (!empty($reservationError)): ?>
+        <div class="alert alert-danger">
+            <?php echo htmlspecialchars($reservationError); ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($searchQuery !== ''): ?>
     <div class="section mb-5">
         <h2 class="section-title">Search Results for "<?php echo htmlspecialchars($searchQuery); ?>"</h2>
@@ -167,6 +223,10 @@ if ($searchQuery !== '') {
 </div>
 <!-- /.container-fluid -->
 
+<form id="reserveForm" method="POST" style="display:none;">
+    <input type="hidden" name="reserve_uuid" id="reserveUuid" value="">
+</form>
+
 <!-- Book Detail Modal -->
 <div id="bookDetailModal" class="book-modal">
     <div class="book-modal-content">
@@ -182,7 +242,7 @@ if ($searchQuery !== '') {
                 <p class="book-detail-year"><strong>Year Published:</strong> <span id="bookDetailYear"></span></p>
                 <p class="book-detail-description"><strong>Description:</strong></p>
                 <p id="bookDetailDescription"></p>
-                <button id="bookButton" class="btn btn-primary mt-3">Book This</button>
+                <button id="bookButton" type="button" class="btn btn-primary mt-3">Book This</button>
             </div>
         </div>
     </div>
@@ -359,29 +419,8 @@ if ($searchQuery !== '') {
             return;
         }
 
-        // Send reservation request
-        fetch('../api/reserve-book.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                uuid: currentBookUuid
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Book reserved successfully! You can view it in your reservations.');
-                modal.style.display = 'none';
-            } else {
-                alert('Error: ' + (data.message || 'Could not reserve the book'));
-            }
-        })
-        .catch(error => {
-            console.error('Error reserving book:', error);
-            alert('Error reserving the book. Please try again.');
-        });
+        document.getElementById('reserveUuid').value = currentBookUuid;
+        document.getElementById('reserveForm').submit();
     }
 </script>
 
