@@ -102,23 +102,24 @@ foreach ($reservations as $r) {
         }
 
         foreach ($data as $r) {
+            $descriptionSnippet = htmlspecialchars(substr($r['description'] ?? '', 0, 120));
             ?>
             <div class="book-card">
-                <img src="<?php echo $r['image']; ?>" class="book-img">
+                <img src="<?php echo htmlspecialchars($r['image']); ?>" class="book-img">
 
                 <div class="book-info">
                     <div class="book-title"><?php echo htmlspecialchars($r['title']); ?></div>
                     <div class="book-author"><?php echo htmlspecialchars($r['author']); ?></div>
                     <div class="book-publisher">Publisher: <?php echo htmlspecialchars($r['publisher'] ?? 'N/A'); ?></div>
                     <div class="book-year">Year: <?php echo htmlspecialchars($r['yearPublished'] ?? 'N/A'); ?></div>
-                    <div class="book-description"><?php echo htmlspecialchars(substr($r['description'] ?? '', 0, 140)); ?><?php echo (!empty($r['description']) && strlen($r['description']) > 140) ? '...' : ''; ?></div>
+                    <div class="book-description"><?php echo htmlspecialchars($descriptionSnippet); ?><?php echo (!empty($r['description']) && strlen($r['description']) > 120) ? '...' : ''; ?></div>
                     <small>
                         Reserved: <?php echo $r['display_date'] ? date('M d, Y', strtotime($r['display_date'])) : 'N/A'; ?>
                     </small>
                 </div>
 
-                <div>
-                    <span class="badge-status <?php echo $status; ?>">
+                <div class="book-status">
+                    <span class="badge-status <?php echo htmlspecialchars($status); ?>">
                         <?php echo ucfirst($status); ?>
                     </span>
 

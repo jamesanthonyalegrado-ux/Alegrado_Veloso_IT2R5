@@ -20,7 +20,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId = $_SESSION['user_id'];
+$userId = intval($_SESSION['user_id']);
 
 // ======================
 // SAFE DATA FETCH
@@ -37,9 +37,13 @@ $reservationsExists = ($tableCheck && $tableCheck->num_rows > 0);
 
 // My reservations
 $myReservations = 0;
-if ($reservationsExists) {
-    $res = $conn->query("SELECT COUNT(*) as total FROM reservations WHERE user_id = $userId");
+if ($reservationsExists && $userId > 0) {
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM reservations WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
     if ($res) $myReservations = $res->fetch_assoc()['total'];
+    $stmt->close();
 }
 ?>
 

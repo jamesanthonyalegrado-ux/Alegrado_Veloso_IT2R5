@@ -24,7 +24,12 @@ if (!isset($requestBody['uuid']) || trim($requestBody['uuid']) === '') {
 }
 
 $uuid = trim($requestBody['uuid']);
-$user_id = $_SESSION['user_id'];
+$user_id = intval($_SESSION['user_id']);
+if ($user_id <= 0) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Invalid user session. Please log in again.']);
+    exit;
+}
 
 // First, check if the book exists
 $sqlCheckBook = "SELECT book_id, uuid, title FROM books WHERE uuid = ?";

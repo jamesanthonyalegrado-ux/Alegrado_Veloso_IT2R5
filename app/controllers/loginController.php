@@ -21,7 +21,7 @@ if (isset($_POST['login'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $loginQuery = "SELECT uuid, firstName, lastName, username, password, role 
+    $loginQuery = "SELECT user_id, uuid, firstName, lastName, username, password, role 
                    FROM users 
                    WHERE username = ? AND password = ? 
                    LIMIT 1";
@@ -35,7 +35,7 @@ if (isset($_POST['login'])) {
         if ($result && $result->num_rows > 0) {
             $database = $result->fetch_assoc();
 
-            $user_id  = $database['uuid']; // 
+            $user_id  = $database['user_id'];
             $fullname = $database['firstName'] . ' ' . $database['lastName'];
             $userRole = $database['role']; 
 

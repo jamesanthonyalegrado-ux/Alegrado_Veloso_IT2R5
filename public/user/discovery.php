@@ -17,40 +17,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['reserve_uuid'])) {
     $reserveUuid = trim($_POST['reserve_uuid']);
     $user_id = $_SESSION['user_id'];
 
-    $stmtCheckBook = $conn->prepare("SELECT book_id FROM books WHERE uuid = ?");
-    $stmtCheckBook->bind_param("s", $reserveUuid);
-    $stmtCheckBook->execute();
-    $resultCheckBook = $stmtCheckBook->get_result();
-
-    if ($resultCheckBook->num_rows === 0) {
-        $reservationError = 'Book not found.';
+    // Check if user exists
+    $stmtCheckUser = $conn->prepare("SELECT user_id FROM users WHERE user_id = ?");
+    $stmtCheckUser->bind_param("i", $user_id);
+    $stmtCheckUser->execute();
+    $resultCheckUser = $stmtCheckUser->get_result();
+    if ($resultCheckUser->num_rows === 0) {
+        $reservationError = 'Invalid user session. Please log in again.';
+        $stmtCheckUser->close();
     } else {
-        $book = $resultCheckBook->fetch_assoc();
-        $book_id = $book['book_id'];
-        $stmtCheckBook->close();
+        $stmtCheckUser->close();
 
-        $stmtCheckReservation = $conn->prepare("SELECT reservation_id FROM reservations WHERE user_id = ? AND book_id = ? AND status IN ('reserved', 'pending')");
-        $stmtCheckReservation->bind_param("ii", $user_id, $book_id);
-        $stmtCheckReservation->execute();
-        $resultCheckReservation = $stmtCheckReservation->get_result();
+        $stmtCheckBook = $conn->prepare("SELECT book_id FROM books WHERE uuid = ?");
+        $stmtCheckBook->bind_param("s", $reserveUuid);
+        $stmtCheckBook->execute();
+        $resultCheckBook = $stmtCheckBook->get_result();
 
-        if ($resultCheckReservation->num_rows > 0) {
-            $reservationError = 'You have already reserved this book.';
+        if ($resultCheckBook->num_rows === 0) {
+            $reservationError = 'Book not found.';
         } else {
-            $reservationDate = date('Y-m-d H:i:s');
-            $status = 'reserved';
-            $stmtInsert = $conn->prepare("INSERT INTO reservations (user_id, book_id, reservation_date, status) VALUES (?, ?, ?, ?)");
-            $stmtInsert->bind_param("iiss", $user_id, $book_id, $reservationDate, $status);
+            $book = $resultCheckBook->fetch_assoc();
+            $book_id = $book['book_id'];
+            $stmtCheckBook->close();
 
-            if ($stmtInsert->execute()) {
-                $stmtInsert->close();
-                header('Location: barrowing.php');
-                exit;
+            $stmtCheckReservation = $conn->prepare("SELECT reservation_id FROM reservations WHERE user_id = ? AND book_id = ? AND status IN ('reserved', 'pending')");
+            $stmtCheckReservation->bind_param("ii", $user_id, $book_id);
+            $stmtCheckReservation->execute();
+            $resultCheckReservation = $stmtCheckReservation->get_result();
+
+            if ($resultCheckReservation->num_rows > 0) {
+                $reservationError = 'You have already reserved this book.';
             } else {
-                $reservationError = 'Could not reserve the book. Please try again.';
+                $reservationDate = date('Y-m-d H:i:s');
+                $status = 'reserved';
+                $stmtInsert = $conn->prepare("INSERT INTO reservations (user_id, book_id, reservation_date, status) VALUES (?, ?, ?, ?)");
+                $stmtInsert->bind_param("iiss", $user_id, $book_id, $reservationDate, $status);
+
+                if ($stmtInsert->execute()) {
+                    $stmtInsert->close();
+                    header('Location: barrowing.php');
+                    exit;
+                } else {
+                    $reservationError = 'Could not reserve the book. Please try again.';
+                }
             }
+            $stmtCheckReservation->close();
         }
-        $stmtCheckReservation->close();
     }
 }
 
