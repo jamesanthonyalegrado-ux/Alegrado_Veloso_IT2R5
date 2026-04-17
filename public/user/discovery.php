@@ -136,6 +136,20 @@ if ($searchQuery !== '') {
         </div>
     </div>
 
+    <div class="section mb-5">
+        <h2 class="section-title">All Books</h2>
+        <div class="books-grid">
+            <?php foreach ($allBooks as $book): ?>
+                <div class="book-card" onclick="showBookDetail('<?php echo htmlspecialchars($book['uuid']); ?>')">
+                    <img src="<?php echo $book['image']; ?>" alt="<?php echo htmlspecialchars($book['title']); ?>">
+                    <h3><?php echo htmlspecialchars($book['title']); ?></h3>
+                    <p class="book-author">Author: <?php echo htmlspecialchars($book['author']); ?></p>
+                    <p><?php echo htmlspecialchars(substr($book['description'], 0, 100)) . '...'; ?></p>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
     <!-- Popular Books Section -->
     <div class="section mb-5">
         <h2 class="section-title">New Books</h2>
