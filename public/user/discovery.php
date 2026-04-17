@@ -8,7 +8,6 @@ include(__DIR__ . '/includes/topbar.php');
 
 include(__DIR__ . '/../../app/config/config.php');
 
-// Get all categories
 $sqlCategories = "SELECT DISTINCT category_id FROM books WHERE category_id IS NOT NULL ORDER BY category_id ASC";
 $resultCategories = $conn->query($sqlCategories);
 $categories = [];
@@ -189,20 +188,146 @@ if ($searchQuery !== '') {
     </div>
 </div>
 
+<style>
+    .book-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .book-modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 30px;
+        border-radius: 8px;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from { 
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to { 
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .book-modal-close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .book-modal-close:hover,
+    .book-modal-close:focus {
+        color: black;
+    }
+
+    .book-detail-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-top: 20px;
+    }
+
+    .book-detail-image {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .book-detail-image img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .book-detail-info {
+        padding: 10px;
+    }
+
+    .book-detail-info h2 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 15px;
+    }
+
+    .book-detail-author,
+    .book-detail-publisher,
+    .book-detail-year {
+        margin-bottom: 10px;
+        font-size: 16px;
+        color: #555;
+    }
+
+    .book-detail-description {
+        margin-top: 20px;
+        line-height: 1.6;
+        color: #666;
+        font-size: 15px;
+    }
+
+    #bookButton {
+        padding: 10px 30px;
+        font-size: 16px;
+        font-weight: 500;
+        width: 100%;
+    }
+
+    .book-card {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .book-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    @media (max-width: 768px) {
+        .book-detail-container {
+            grid-template-columns: 1fr;
+        }
+
+        .book-modal-content {
+            margin: 20% auto;
+            padding: 20px;
+        }
+    }
+</style>
+
 <script>
     const modal = document.getElementById('bookDetailModal');
     const closeBtn = document.querySelector('.book-modal-close');
     const bookButton = document.getElementById('bookButton');
     let currentBookUuid = null;
 
-    if (closeBtn) {
-        closeBtn.onclick = function() {
-            modal.style.display = 'none';
-        }
+    closeBtn.onclick = function() {
+        modal.style.display = 'none';
     }
 
     window.onclick = function(event) {
-        if (event.target === modal) {
+        if (event.target == modal) {
             modal.style.display = 'none';
         }
     }
@@ -220,7 +345,7 @@ if ($searchQuery !== '') {
                 document.getElementById('bookDetailDescription').textContent = book.description;
                 document.getElementById('bookDetailImage').src = '../api/get-book-image.php?uuid=' + encodeURIComponent(uuid);
                 
-                modal.style.display = 'flex';
+                modal.style.display = 'block';
             })
             .catch(error => {
                 console.error('Error loading book details:', error);
@@ -247,8 +372,8 @@ if ($searchQuery !== '') {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Book reserved successfully! Redirecting to your reservations.');
-                window.location.href = 'barrowing.php';
+                alert('Book reserved successfully! You can view it in your reservations.');
+                modal.style.display = 'none';
             } else {
                 alert('Error: ' + (data.message || 'Could not reserve the book'));
             }
