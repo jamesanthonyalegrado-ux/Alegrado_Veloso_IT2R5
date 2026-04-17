@@ -42,16 +42,21 @@ if (!$dateColumn) {
 }
 
 // ✅ Query (dynamic date column)
+$allowedDateColumns = ['reservation_date', 'created_at', 'date_reserved'];
+if (!in_array($dateColumn, $allowedDateColumns, true)) {
+    die("Error: Invalid date column selected.");
+}
+
 $sql = "SELECT r.*, b.uuid, b.title, b.author 
         FROM reservations r 
         JOIN books b ON r.book_id = b.book_id 
         WHERE r.user_id = ? 
-        ORDER BY r.$dateColumn DESC";
+        ORDER BY r.`$dateColumn` DESC";
 
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("SQL Error: " . $conn->error);
+    die("SQL Error: " . $conn->error . " | Query: " . $sql);
 }
 
 $stmt->bind_param("i", $user_id);
