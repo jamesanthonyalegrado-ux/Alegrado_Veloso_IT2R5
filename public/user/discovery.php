@@ -195,12 +195,14 @@ if ($searchQuery !== '') {
     const bookButton = document.getElementById('bookButton');
     let currentBookUuid = null;
 
-    closeBtn.onclick = function() {
-        modal.style.display = 'none';
+    if (closeBtn) {
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
     }
 
     window.onclick = function(event) {
-        if (event.target == modal) {
+        if (event.target === modal) {
             modal.style.display = 'none';
         }
     }
@@ -218,7 +220,7 @@ if ($searchQuery !== '') {
                 document.getElementById('bookDetailDescription').textContent = book.description;
                 document.getElementById('bookDetailImage').src = '../api/get-book-image.php?uuid=' + encodeURIComponent(uuid);
                 
-                modal.style.display = 'block';
+                modal.style.display = 'flex';
             })
             .catch(error => {
                 console.error('Error loading book details:', error);
