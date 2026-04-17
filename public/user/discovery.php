@@ -62,25 +62,6 @@ if ($resultNew && $resultNew->num_rows > 0) {
         $newBooks[] = $row;
     }
 }
-
-$searchQuery = '';
-$searchResults = [];
-if (isset($_GET['search']) && trim($_GET['search']) !== '') {
-    $searchQuery = trim($_GET['search']);
-    $searchTerm = '%' . $searchQuery . '%';
-    $sqlSearch = "SELECT uuid, title, author, publisher, yearPublished, category_id, description FROM books WHERE title LIKE ? OR author LIKE ? ORDER BY title ASC LIMIT 20";
-    $stmtSearch = $conn->prepare($sqlSearch);
-    $stmtSearch->bind_param("ss", $searchTerm, $searchTerm);
-    $stmtSearch->execute();
-    $resultSearch = $stmtSearch->get_result();
-    if ($resultSearch && $resultSearch->num_rows > 0) {
-        while ($row = $resultSearch->fetch_assoc()) {
-            $row['image'] = '../api/get-book-image.php?uuid=' . $row['uuid'];
-            $searchResults[] = $row;
-        }
-    }
-    $stmtSearch->close();
-}
 ?>
 
 <!-- Begin Page Content -->
@@ -90,26 +71,6 @@ if (isset($_GET['search']) && trim($_GET['search']) !== '') {
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Discovery Page</h1>
     </div>
-
-    <?php if ($searchQuery !== ''): ?>
-    <div class="section mb-5">
-        <h2 class="section-title">Search results for "<?php echo htmlspecialchars($searchQuery); ?>"</h2>
-        <?php if (!empty($searchResults)): ?>
-            <div class="books-grid">
-                <?php foreach ($searchResults as $book): ?>
-                    <div class="book-card" onclick="showBookDetail('<?php echo htmlspecialchars($book['uuid']); ?>')">
-                        <img src="<?php echo $book['image']; ?>" alt="<?php echo htmlspecialchars($book['title']); ?>">
-                        <h3><?php echo htmlspecialchars($book['title']); ?></h3>
-                        <p class="book-author">Author: <?php echo htmlspecialchars($book['author']); ?></p>
-                        <p><?php echo htmlspecialchars(substr($book['description'], 0, 100)) . '...'; ?></p>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php else: ?>
-            <p class="text-muted">No books matched your search.</p>
-        <?php endif; ?>
-    </div>
-    <?php endif; ?>
 
     <!-- Recommended Books Section -->
     <div class="section mb-5">
@@ -182,93 +143,201 @@ if (isset($_GET['search']) && trim($_GET['search']) !== '') {
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const modal = document.getElementById('bookDetailModal');
-        const closeBtn = document.querySelector('.book-modal-close');
-        const bookButton = document.getElementById('bookButton');
-        let currentBookUuid = null;
+<style>
+    .book-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease;
+    }
 
-        function closeModal() {
-            modal.style.display = 'none';
-            currentBookUuid = null;
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .book-modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 30px;
+        border-radius: 8px;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from { 
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to { 
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .book-modal-close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .book-modal-close:hover,
+    .book-modal-close:focus {
+        color: black;
+    }
+
+    .book-detail-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-top: 20px;
+    }
+
+    .book-detail-image {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .book-detail-image img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .book-detail-info {
+        padding: 10px;
+    }
+
+    .book-detail-info h2 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 15px;
+    }
+
+    .book-detail-author,
+    .book-detail-publisher,
+    .book-detail-year {
+        margin-bottom: 10px;
+        font-size: 16px;
+        color: #555;
+    }
+
+    .book-detail-description {
+        margin-top: 20px;
+        line-height: 1.6;
+        color: #666;
+        font-size: 15px;
+    }
+
+    #bookButton {
+        padding: 10px 30px;
+        font-size: 16px;
+        font-weight: 500;
+        width: 100%;
+    }
+
+    .book-card {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .book-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    @media (max-width: 768px) {
+        .book-detail-container {
+            grid-template-columns: 1fr;
         }
 
-        closeBtn.addEventListener('click', closeModal);
+        .book-modal-content {
+            margin: 20% auto;
+            padding: 20px;
+        }
+    }
+</style>
 
-        window.addEventListener('click', function(event) {
-            if (event.target === modal) {
-                closeModal();
-            }
-        });
+<script>
+    const modal = document.getElementById('bookDetailModal');
+    const closeBtn = document.querySelector('.book-modal-close');
+    const bookButton = document.getElementById('bookButton');
+    let currentBookUuid = null;
 
-        window.showBookDetail = function(uuid) {
-            currentBookUuid = uuid;
-            bookButton.disabled = true;
-            bookButton.textContent = 'Loading...';
+    closeBtn.onclick = function() {
+        modal.style.display = 'none';
+    }
 
-            fetch('../api/get-book-details.php?uuid=' + encodeURIComponent(uuid))
-                .then(response => response.json())
-                .then(book => {
-                    if (!book || book.error) {
-                        throw new Error(book.error || 'Book details not found');
-                    }
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
 
-                    document.getElementById('bookDetailTitle').textContent = book.title || 'Untitled';
-                    document.getElementById('bookDetailAuthor').textContent = book.author || 'Unknown';
-                    document.getElementById('bookDetailPublisher').textContent = book.publisher || 'N/A';
-                    document.getElementById('bookDetailYear').textContent = book.yearPublished || 'N/A';
-                    document.getElementById('bookDetailDescription').textContent = book.description || 'No description available.';
-                    document.getElementById('bookDetailImage').src = '../api/get-book-image.php?uuid=' + encodeURIComponent(uuid);
-                    document.getElementById('bookDetailImage').alt = book.title || 'Book cover';
-
-                    modal.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error loading book details:', error);
-                    alert('Error loading book details. Please try again.');
-                })
-                .finally(() => {
-                    bookButton.disabled = false;
-                    bookButton.textContent = 'Book This';
-                });
-        };
-
-        bookButton.addEventListener('click', function() {
-            if (!currentBookUuid) {
-                alert('Please select a book first.');
-                return;
-            }
-
-            bookButton.disabled = true;
-            bookButton.textContent = 'Booking...';
-
-            fetch('../api/reserve-book.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ uuid: currentBookUuid })
-            })
+    function showBookDetail(uuid) {
+        currentBookUuid = uuid;
+        
+        fetch('../api/get-book-details.php?uuid=' + encodeURIComponent(uuid))
             .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Book reserved successfully! Redirecting to your reservations.');
-                    window.location.href = 'barrowing.php';
-                } else {
-                    alert('Error: ' + (data.message || 'Could not reserve the book'));
-                }
+            .then(book => {
+                document.getElementById('bookDetailTitle').textContent = book.title;
+                document.getElementById('bookDetailAuthor').textContent = book.author;
+                document.getElementById('bookDetailPublisher').textContent = book.publisher || 'N/A';
+                document.getElementById('bookDetailYear').textContent = book.yearPublished || 'N/A';
+                document.getElementById('bookDetailDescription').textContent = book.description;
+                document.getElementById('bookDetailImage').src = '../api/get-book-image.php?uuid=' + encodeURIComponent(uuid);
+                
+                modal.style.display = 'block';
             })
             .catch(error => {
-                console.error('Error reserving book:', error);
-                alert('Error reserving the book. Please try again.');
-            })
-            .finally(() => {
-                bookButton.disabled = false;
-                bookButton.textContent = 'Book This';
+                console.error('Error loading book details:', error);
+                alert('Error loading book details. Please try again.');
             });
+    }
+
+    bookButton.onclick = function() {
+        if (!currentBookUuid) {
+            alert('Book not selected');
+            return;
+        }
+
+        // Send reservation request
+        fetch('../api/reserve-book.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                uuid: currentBookUuid
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Book reserved successfully! You can view it in your reservations.');
+                modal.style.display = 'none';
+            } else {
+                alert('Error: ' + (data.message || 'Could not reserve the book'));
+            }
+        })
+        .catch(error => {
+            console.error('Error reserving book:', error);
+            alert('Error reserving the book. Please try again.');
         });
-    });
+    }
 </script>
 
 <?php
