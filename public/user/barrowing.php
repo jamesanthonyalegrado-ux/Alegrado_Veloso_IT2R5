@@ -9,12 +9,12 @@ include(__DIR__ . '/includes/sidebar.php');
 include(__DIR__ . '/includes/topbar.php');
 include(__DIR__ . '/../../app/config/config.php');
 
-// 🔒 DB check
+
 if (!$conn) {
     die("Database connection failed: " . mysqli_connect_error());
 }
 
-// 🔒 Login check
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../../login.php');
     exit;
@@ -22,15 +22,13 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// ✅ Check table
-$tableCheck = $conn->query("SHOW TABLES LIKE 'reservation'");
+$tableCheck = $conn->query("SHOW TABLES LIKE 'reservations'");
 if ($tableCheck->num_rows == 0) {
-    die("Error: reservation table missing");
+    die("Error: reservations table missing");
 }
 
-// ✅ Detect correct date column
 $dateColumn = null;
-$columnsCheck = $conn->query("SHOW COLUMNS FROM reservation");
+$columnsCheck = $conn->query("SHOW COLUMNS FROM reservations");
 
 while ($col = $columnsCheck->fetch_assoc()) {
     if (in_array($col['Field'], ['reservation_date', 'created_at', 'date_reserved'])) {
@@ -45,7 +43,7 @@ if (!$dateColumn) {
 
 // ✅ Query (dynamic date column)
 $sql = "SELECT r.*, b.uuid, b.title, b.author 
-        FROM reservation r 
+        FROM reservations r 
         JOIN books b ON r.book_id = b.book_id 
         WHERE r.user_id = ? 
         ORDER BY r.$dateColumn DESC";

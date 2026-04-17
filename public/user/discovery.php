@@ -183,72 +183,92 @@ if (isset($_GET['search']) && trim($_GET['search']) !== '') {
 </div>
 
 <script>
-    const modal = document.getElementById('bookDetailModal');
-    const closeBtn = document.querySelector('.book-modal-close');
-    const bookButton = document.getElementById('bookButton');
-    let currentBookUuid = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('bookDetailModal');
+        const closeBtn = document.querySelector('.book-modal-close');
+        const bookButton = document.getElementById('bookButton');
+        let currentBookUuid = null;
 
-    closeBtn.onclick = function() {
-        modal.style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
+        function closeModal() {
             modal.style.display = 'none';
+            currentBookUuid = null;
         }
-    }
 
-    function showBookDetail(uuid) {
-        currentBookUuid = uuid;
-        
-        fetch('../api/get-book-details.php?uuid=' + encodeURIComponent(uuid))
+        closeBtn.addEventListener('click', closeModal);
+
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+
+        window.showBookDetail = function(uuid) {
+            currentBookUuid = uuid;
+            bookButton.disabled = true;
+            bookButton.textContent = 'Loading...';
+
+            fetch('../api/get-book-details.php?uuid=' + encodeURIComponent(uuid))
+                .then(response => response.json())
+                .then(book => {
+                    if (!book || book.error) {
+                        throw new Error(book.error || 'Book details not found');
+                    }
+
+                    document.getElementById('bookDetailTitle').textContent = book.title || 'Untitled';
+                    document.getElementById('bookDetailAuthor').textContent = book.author || 'Unknown';
+                    document.getElementById('bookDetailPublisher').textContent = book.publisher || 'N/A';
+                    document.getElementById('bookDetailYear').textContent = book.yearPublished || 'N/A';
+                    document.getElementById('bookDetailDescription').textContent = book.description || 'No description available.';
+                    document.getElementById('bookDetailImage').src = '../api/get-book-image.php?uuid=' + encodeURIComponent(uuid);
+                    document.getElementById('bookDetailImage').alt = book.title || 'Book cover';
+
+                    modal.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error loading book details:', error);
+                    alert('Error loading book details. Please try again.');
+                })
+                .finally(() => {
+                    bookButton.disabled = false;
+                    bookButton.textContent = 'Book This';
+                });
+        };
+
+        bookButton.addEventListener('click', function() {
+            if (!currentBookUuid) {
+                alert('Please select a book first.');
+                return;
+            }
+
+            bookButton.disabled = true;
+            bookButton.textContent = 'Booking...';
+
+            fetch('../api/reserve-book.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ uuid: currentBookUuid })
+            })
             .then(response => response.json())
-            .then(book => {
-                document.getElementById('bookDetailTitle').textContent = book.title;
-                document.getElementById('bookDetailAuthor').textContent = book.author;
-                document.getElementById('bookDetailPublisher').textContent = book.publisher || 'N/A';
-                document.getElementById('bookDetailYear').textContent = book.yearPublished || 'N/A';
-                document.getElementById('bookDetailDescription').textContent = book.description;
-                document.getElementById('bookDetailImage').src = '../api/get-book-image.php?uuid=' + encodeURIComponent(uuid);
-                
-                modal.style.display = 'block';
+            .then(data => {
+                if (data.success) {
+                    alert('Book reserved successfully! Redirecting to your reservations.');
+                    window.location.href = 'barrowing.php';
+                } else {
+                    alert('Error: ' + (data.message || 'Could not reserve the book'));
+                }
             })
             .catch(error => {
-                console.error('Error loading book details:', error);
-                alert('Error loading book details. Please try again.');
-            });
-    }
-
-    bookButton.onclick = function() {
-        if (!currentBookUuid) {
-            alert('Book not selected');
-            return;
-        }
-
-        // Send reservation request
-        fetch('../api/reserve-book.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                uuid: currentBookUuid
+                console.error('Error reserving book:', error);
+                alert('Error reserving the book. Please try again.');
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Book reserved successfully! You can view it in your reservations.');
-                modal.style.display = 'none';
-            } else {
-                alert('Error: ' + (data.message || 'Could not reserve the book'));
-            }
-        })
-        .catch(error => {
-            console.error('Error reserving book:', error);
-            alert('Error reserving the book. Please try again.');
+            .finally(() => {
+                bookButton.disabled = false;
+                bookButton.textContent = 'Book This';
+            });
         });
-    }
+    });
 </script>
 
 <?php
