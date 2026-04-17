@@ -289,10 +289,9 @@ body {
 
 .book-detail-container {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) 1.4fr;
+    grid-template-columns: 1fr 1fr;
     gap: 30px;
     margin-top: 20px;
-    align-items: start;
 }
 
 .book-detail-image {
@@ -304,8 +303,8 @@ body {
 .book-detail-image img {
     max-width: 100%;
     height: auto;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .book-detail-info {
